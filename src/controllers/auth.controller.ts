@@ -58,6 +58,13 @@ export const authController = {
     res.json(await authService.me(currentUser(req).id));
   },
 
+  async deleteAccount(req: Request, res: Response) {
+    const { body } = validated<{ body: { password: string } }>(res);
+    await authService.deleteAccount(currentUser(req).id, body.password);
+    res.clearCookie(REFRESH_COOKIE, { path: "/api/v1/auth" });
+    res.status(204).end();
+  },
+
   async changePassword(req: Request, res: Response) {
     const { body } = validated<{ body: ChangePasswordInput }>(res);
     sendSession(

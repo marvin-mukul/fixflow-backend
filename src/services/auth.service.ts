@@ -6,6 +6,7 @@ import { randomToken, sha256, uuid } from "../lib/crypto.js";
 import { prisma } from "../lib/prisma.js";
 import { refreshTokenRepository } from "../repositories/refreshToken.repository.js";
 import {
+  accountRepository,
   userRepository,
   type UserRecord,
 } from "../repositories/user.repository.js";
@@ -195,6 +196,25 @@ export const authService = {
       refreshToken: token,
       user: toUserDto(updated),
     };
+  },
+
+  /** Self-service account deletion (requirements.md §15): password re-check, no open obligations, anonymise. */
+  async deleteAccount(userId: string, password: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw AppError.unauthenticated();
+    if (user.globalRole === "SUPERADMIN")
+      throw AppError.forbidden("The superadmin account cannot be deleted");
+    if (!(await bcrypt.compare(password, user.passwordHash)))
+      throw AppError.validation([
+        { path: "password", message: "Password is incorrect" },
+      ]);
+    const o = await accountRepository.openObligations(userId);
+    if (o.requests || o.jobs || o.unpaid)
+      throw AppError.conflict(
+        "ACCOUNT_HAS_OPEN_ITEMS",
+        `Finish or cancel open items first (requests: ${o.requests}, jobs: ${o.jobs}, unpaid invoices: ${o.unpaid})`,
+      );
+    await prisma.$transaction((tx) => accountRepository.anonymise(userId, tx));
   },
 
   /** For passport-jwt: loads the current user for a verified token. */

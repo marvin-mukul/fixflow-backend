@@ -6,6 +6,7 @@ import { validate } from "../middlewares/validate.js";
 import {
   AuthResponse,
   ChangePasswordBody,
+  DeleteAccountBody,
   LoginBody,
   RegisterBody,
   UserDto,
@@ -27,6 +28,12 @@ authRouter.post(
   authController.login,
 );
 authRouter.post("/auth/refresh", authController.refresh);
+authRouter.delete(
+  "/auth/me",
+  requireAuth(),
+  validate({ body: DeleteAccountBody }),
+  authController.deleteAccount,
+);
 authRouter.post("/auth/logout", authController.logout);
 authRouter.get("/auth/me", me, authController.me);
 authRouter.post(
@@ -96,4 +103,17 @@ registry.registerPath({
   security: BEARER,
   request: { body: { content: json(ChangePasswordBody) } },
   responses: { 200: session, ...errorResponses(401, 422, 429) },
+});
+registry.registerPath({
+  method: "delete",
+  path: "/api/v1/auth/me",
+  tags: ["Auth"],
+  summary:
+    "Delete my account (soft delete + anonymise; blocked while requests/jobs/invoices are open)",
+  security: BEARER,
+  request: { body: { content: json(DeleteAccountBody) } },
+  responses: {
+    204: { description: "Deleted" },
+    ...errorResponses(401, 403, 409, 422),
+  },
 });

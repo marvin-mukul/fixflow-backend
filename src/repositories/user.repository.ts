@@ -36,3 +36,58 @@ export const userRepository = {
     return tx.user.update({ where: { id }, data, include: withProfileFlag });
   },
 };
+
+export const accountRepository = {
+  /** Open obligations that block self-deletion. */
+  async openObligations(userId: string, tx: TxClient = prisma) {
+    const [requests, jobs, unpaid] = await Promise.all([
+      tx.repairRequest.count({
+        where: {
+          OR: [{ raisedById: userId }, { payerUserId: userId }],
+          status: { notIn: ["COMPLETED", "REJECTED", "EXPIRED", "CANCELLED"] },
+        },
+      }),
+      tx.job.count({
+        where: {
+          workerProfile: { userId },
+          request: {
+            status: {
+              in: ["SCHEDULED", "IN_PROGRESS", "PENDING_SIGN_OFF", "DISPUTED"],
+            },
+          },
+        },
+      }),
+      tx.invoice.count({
+        where: { status: "ISSUED", job: { request: { payerUserId: userId } } },
+      }),
+    ]);
+    return { requests, jobs, unpaid };
+  },
+
+  /** Soft-delete + anonymise PII; history rows keep their foreign keys. */
+  async anonymise(userId: string, tx: TxClient) {
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        status: "DELETED",
+        deletedAt: new Date(),
+        email: `deleted+${userId}@fixflow.invalid`,
+        name: "Deleted user",
+        phone: null,
+        passwordHash: "!",
+      },
+    });
+    await tx.workerProfile.updateMany({
+      where: { userId },
+      data: { isAvailable: false, bio: "", gstin: null, idDocumentPath: null },
+    });
+    await tx.tenancy.updateMany({
+      where: { tenantId: userId, status: "ACTIVE" },
+      data: { status: "ENDED", endDate: new Date() },
+    });
+    await tx.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  },
+};

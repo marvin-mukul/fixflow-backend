@@ -84,3 +84,7 @@ export type RegisterInput = z.infer<typeof RegisterBody>;
 export type LoginInput = z.infer<typeof LoginBody>;
 export type ChangePasswordInput = z.infer<typeof ChangePasswordBody>;
 export type UserDtoT = z.infer<typeof UserDto>;
+
+export const DeleteAccountBody = z
+  .object({ password: z.string().min(1) })
+  .openapi("DeleteAccountBody", { example: { password: "Demo@123" } });

@@ -5,7 +5,8 @@ import helmet from "helmet";
 import { pinoHttp } from "pino-http";
 import { env, isProd } from "./config/env.js";
 import { logger } from "./lib/logger.js";
-import { passportInitialize } from "./middlewares/auth.js";
+import { passportInitialize, requireAuth } from "./middlewares/auth.js";
+import { requireRole } from "./middlewares/requireRole.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { notFound } from "./middlewares/notFound.js";
 import {
@@ -55,7 +56,14 @@ export function createApp(): Express {
   const requestCreateLimiter = createRequestCreateLimiter();
   app.post("/api/v1/requests", requestCreateLimiter);
   app.use("/api/v1", apiRouter);
-  if (!isProd || env.SWAGGER_PUBLIC) app.use(createDocsRouter());
+  // Swagger: public in dev/test (or SWAGGER_PUBLIC=true); admin-only otherwise.
+  app.use(
+    createDocsRouter(
+      !isProd || env.SWAGGER_PUBLIC
+        ? []
+        : [requireAuth(), requireRole("ADMIN")],
+    ),
+  );
 
   app.use(notFound);
   app.use(errorHandler);

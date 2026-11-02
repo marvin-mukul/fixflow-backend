@@ -225,14 +225,11 @@ describe("admin", () => {
 
   it("superadmin manages admins", async () => {
     const sa = await userWithToken("SUPERADMIN");
-    const created = await api()
-      .post("/api/v1/admin/admins")
-      .set(sa.auth)
-      .send({
-        name: "Second Admin",
-        email: "Admin2@Fixflow.in",
-        password: "Temp@1234",
-      });
+    const created = await api().post("/api/v1/admin/admins").set(sa.auth).send({
+      name: "Second Admin",
+      email: "Admin2@Fixflow.in",
+      password: "Temp@1234",
+    });
     expect(created.status).toBe(201);
     expect(created.body).toMatchObject({
       email: "admin2@fixflow.in",
@@ -241,14 +238,11 @@ describe("admin", () => {
     });
     expect(
       (
-        await api()
-          .post("/api/v1/admin/admins")
-          .set(sa.auth)
-          .send({
-            name: "Again",
-            email: "admin2@fixflow.in",
-            password: "Temp@1234",
-          })
+        await api().post("/api/v1/admin/admins").set(sa.auth).send({
+          name: "Again",
+          email: "admin2@fixflow.in",
+          password: "Temp@1234",
+        })
       ).status,
     ).toBe(409);
     const { token } = await login("admin2@fixflow.in", "Temp@1234");
