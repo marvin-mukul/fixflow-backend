@@ -35,6 +35,20 @@ const schema = z.object({
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().default("FixFlow <no-reply@fixflow.local>"),
   UPLOAD_DIR: z.string().default("./uploads"),
+  // "s3" stores uploads in an S3-compatible bucket (Neon, R2, AWS); "local" uses UPLOAD_DIR.
+  STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+  S3_ENDPOINT: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().url().optional(),
+  ),
+  S3_REGION: z.string().default("auto"),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_FORCE_PATH_STYLE: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
   SWAGGER_PUBLIC: bool,
   PAYMENT_PROVIDER: z.enum(["mock", "cashfree"]).default("mock"),
   CASHFREE_APP_ID: z.string().optional(),
@@ -60,6 +74,19 @@ function load(): Env {
       process.exit(1);
     }
     data.DATABASE_URL = data.DATABASE_URL_TEST;
+  }
+  if (data.STORAGE_DRIVER === "s3") {
+    const required = [
+      "S3_ENDPOINT",
+      "S3_BUCKET",
+      "S3_ACCESS_KEY_ID",
+      "S3_SECRET_ACCESS_KEY",
+    ] as const;
+    const missing = required.filter((k) => !data[k]);
+    if (missing.length) {
+      console.error(`STORAGE_DRIVER=s3 requires ${missing.join(", ")}`);
+      process.exit(1);
+    }
   }
   return data;
 }
