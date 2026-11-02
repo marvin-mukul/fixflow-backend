@@ -23,7 +23,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "openapi:check": "vitest run tests/integration/openapi.test.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:e2e-reset": "tsx scripts/e2e-reset.ts"
   },
   "keywords": [],
   "author": "",
