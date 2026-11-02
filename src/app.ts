@@ -5,8 +5,10 @@ import helmet from "helmet";
 import { pinoHttp } from "pino-http";
 import { env, isProd } from "./config/env.js";
 import { logger } from "./lib/logger.js";
+import { passportInitialize } from "./middlewares/auth.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { notFound } from "./middlewares/notFound.js";
+import { createAuthLimiter } from "./middlewares/rateLimit.js";
 import { requestId } from "./middlewares/requestId.js";
 import { createDocsRouter } from "./routes/docs.routes.js";
 import { apiRouter, opsRouter } from "./routes/index.js";
@@ -41,7 +43,10 @@ export function createApp(): Express {
   // Payment webhooks (Step 9) mount express.raw() before this line.
   app.use(express.json({ limit: "1mb" }));
 
+  app.use(passportInitialize);
+
   app.use(opsRouter);
+  app.use("/api/v1/auth", createAuthLimiter());
   app.use("/api/v1", apiRouter);
   if (!isProd || env.SWAGGER_PUBLIC) app.use(createDocsRouter());
 
