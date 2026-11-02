@@ -88,8 +88,14 @@ export const JobDto = z
       })
       .nullable(),
     myReview: z
-      .object({ id: z.string().uuid(), overall: z.number() })
-      .passthrough()
+      .object({
+        id: z.string().uuid(),
+        overall: z.number(),
+        revieweeType: z.enum(["WORKER", "CUSTOMER"]),
+        createdAt: z.string(),
+        editedAt: z.string().nullable(),
+        editable: z.boolean(),
+      })
       .nullable(),
     myRelations: z.array(z.string()),
     workerActions: z.array(z.enum(["en_route", "arrive", "start", "complete"])),

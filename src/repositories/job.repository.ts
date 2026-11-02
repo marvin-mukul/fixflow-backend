@@ -21,6 +21,7 @@ export const jobInclude = {
       revieweeType: true,
       overall: true,
       createdAt: true,
+      editedAt: true,
     },
   },
 } satisfies Prisma.JobInclude;

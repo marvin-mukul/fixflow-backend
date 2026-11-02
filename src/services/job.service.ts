@@ -84,7 +84,19 @@ export function toJobDto(job: JobWithContext, user: Viewer) {
           resolution: job.dispute.resolution,
         }
       : null,
-    myReview: job.reviews.find((r) => r.reviewerId === user.id) ?? null,
+    myReview: (() => {
+      const r = job.reviews.find((x) => x.reviewerId === user.id);
+      if (!r) return null;
+      return {
+        id: r.id,
+        overall: r.overall,
+        revieweeType: r.revieweeType,
+        createdAt: r.createdAt.toISOString(),
+        editedAt: r.editedAt?.toISOString() ?? null,
+        editable:
+          !r.editedAt && Date.now() - r.createdAt.getTime() < 24 * 3_600_000,
+      };
+    })(),
     myRelations: rel,
     workerActions:
       isWorker && ["SCHEDULED", "IN_PROGRESS"].includes(job.request.status)
