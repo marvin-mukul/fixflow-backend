@@ -10,7 +10,7 @@ Follow these rules for every change. Product spec: `../requirements.md`; build o
 
 ## Commands
 
-- No Docker. Local PostgreSQL 17 on **localhost:5432** (dbs `fixflow`, `fixflow_test`; one-time setup in `../requirements.md §13`). Emails are logged to the console unless `SMTP_HOST` is set.
+- No Docker. Local PostgreSQL 17 on **localhost:5432** (dbs `fixflow`, `fixflow_test`; one-time setup in `../requirements.md §13`). Emails go through the Brevo HTTPS API when `BREVO_API_KEY` is set, otherwise they are logged to the console.
 - `npm run dev` – API on :4000, Swagger at `/api/docs`, spec at `/api/docs.json`
 - `npm run typecheck && npm run lint && npm test` – must be green before every commit
 - `npm run db:migrate` / `db:reset` / `db:seed` / `db:generate` / `db:studio`
