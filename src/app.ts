@@ -15,6 +15,7 @@ import {
 import { requestId } from "./middlewares/requestId.js";
 import { createDocsRouter } from "./routes/docs.routes.js";
 import { apiRouter, opsRouter } from "./routes/index.js";
+import { webhookRouter } from "./routes/payment.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -43,7 +44,8 @@ export function createApp(): Express {
     }),
   );
   app.use(cookieParser());
-  // Payment webhooks (Step 9) mount express.raw() before this line.
+  // Payment webhooks need the raw body for signature checks: mounted before express.json().
+  app.use(webhookRouter);
   app.use(express.json({ limit: "1mb" }));
 
   app.use(passportInitialize);

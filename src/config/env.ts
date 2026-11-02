@@ -18,6 +18,8 @@ const schema = z.object({
   DATABASE_URL_TEST: z.string().url().optional(),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   APP_URL: z.string().url().default("http://localhost:5173"),
+  /** Public base URL of this API (payment return/notify URLs). */
+  API_PUBLIC_URL: z.string().url().default("http://localhost:4000"),
   JWT_ACCESS_SECRET: z.string().min(8),
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(7),
@@ -39,6 +41,7 @@ const schema = z.object({
   CASHFREE_SECRET_KEY: z.string().optional(),
   CASHFREE_ENV: z.enum(["sandbox", "production"]).default("sandbox"),
   CASHFREE_WEBHOOK_SECRET: z.string().optional(),
+  CASHFREE_API_VERSION: z.string().default("2025-01-01"),
 });
 
 export type Env = z.infer<typeof schema>;

@@ -10,6 +10,7 @@ import { quoteRouter } from "./quote.routes.js";
 import "../services/matching.service.js";
 import "../services/invoice.service.js";
 import { jobRouter } from "./job.routes.js";
+import { paymentRouter } from "./payment.routes.js";
 
 /** Versioned API routes, mounted at /api/v1. Each area adds its router here. */
 export const apiRouter = Router();
@@ -21,6 +22,7 @@ apiRouter.use(notificationRouter);
 apiRouter.use(workerRouter);
 apiRouter.use(quoteRouter);
 apiRouter.use(jobRouter);
+apiRouter.use(paymentRouter);
 
 /** Unversioned operational routes. */
 export const opsRouter = Router();
