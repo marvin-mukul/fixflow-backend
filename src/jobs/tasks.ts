@@ -6,3 +6,5 @@ registerTask("approval-reminders", () =>
 );
 import { quoteService } from "../services/quote.service.js";
 registerTask("quote-deadlines", () => quoteService.expireDue());
+import { jobService } from "../services/job.service.js";
+registerTask("auto-confirm", () => jobService.autoConfirmDue());

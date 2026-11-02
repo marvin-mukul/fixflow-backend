@@ -8,6 +8,8 @@ import { categoryRouter } from "./category.routes.js";
 import { workerRouter } from "./worker.routes.js";
 import { quoteRouter } from "./quote.routes.js";
 import "../services/matching.service.js";
+import "../services/invoice.service.js";
+import { jobRouter } from "./job.routes.js";
 
 /** Versioned API routes, mounted at /api/v1. Each area adds its router here. */
 export const apiRouter = Router();
@@ -18,6 +20,7 @@ apiRouter.use(requestRouter);
 apiRouter.use(notificationRouter);
 apiRouter.use(workerRouter);
 apiRouter.use(quoteRouter);
+apiRouter.use(jobRouter);
 
 /** Unversioned operational routes. */
 export const opsRouter = Router();

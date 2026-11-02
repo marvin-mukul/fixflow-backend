@@ -471,16 +471,13 @@ describe("leads + quotes", () => {
     expect(
       (await api().get("/api/v1/worker/profile").set(w.auth)).body.error.code,
     ).toBe("WORKER_PROFILE_MISSING");
-    const p = await api()
-      .put("/api/v1/worker/profile")
-      .set(w.auth)
-      .send({
-        baseLat: 30.33,
-        baseLng: 78.03,
-        state: "Uttarakhand",
-        serviceRadiusKm: 15,
-        gstin: "05abcde1234f1z5",
-      });
+    const p = await api().put("/api/v1/worker/profile").set(w.auth).send({
+      baseLat: 30.33,
+      baseLng: 78.03,
+      state: "Uttarakhand",
+      serviceRadiusKm: 15,
+      gstin: "05abcde1234f1z5",
+    });
     expect(p.status).toBe(200);
     expect(p.body).toMatchObject({
       verificationStatus: "PENDING",
