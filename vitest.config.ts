@@ -6,6 +6,7 @@ export default defineConfig({
       NODE_ENV: "test",
       SEED_SUPERADMIN_PASSWORD: "Rubi@123",
       UPLOAD_DIR: ".test-uploads",
+      STORAGE_DRIVER: "local",
     },
     projects: [
       {
