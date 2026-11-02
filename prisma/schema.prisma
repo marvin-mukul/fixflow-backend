@@ -1,4 +1,5 @@
-// FixFlow data model — full schema arrives in Step 1 (requirements.md §8).
+// FixFlow data model — requirements.md §8.
+// Geo: plain lat/lng columns + SQL haversine (ADR 002). No PostGIS dependency.
 
 generator client {
   provider               = "prisma-client"
@@ -10,4 +11,648 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum GlobalRole {
+  SUPERADMIN
+  ADMIN
+  CUSTOMER
+  WORKER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum PropertyType {
+  HOUSE
+  FLAT
+  OTHER
+}
+
+enum TenancyStatus {
+  INVITED
+  ACTIVE
+  ENDED
+}
+
+enum InvitationType {
+  TENANT
+  OWNER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum OrgRole {
+  OWNER
+  MEMBER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  EMERGENCY
+}
+
+enum RequestStatus {
+  AWAITING_OWNER_JOIN
+  PENDING_APPROVAL
+  OPEN_FOR_QUOTES
+  SCHEDULED
+  IN_PROGRESS
+  PENDING_SIGN_OFF
+  COMPLETED
+  DISPUTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum MediaKind {
+  BEFORE
+  AFTER
+  DOCUMENT
+}
+
+enum QuoteStatus {
+  SUBMITTED
+  WITHDRAWN
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum JobSubStatus {
+  CONFIRMED
+  EN_ROUTE
+  ARRIVED
+  WORKING
+  DONE
+}
+
+enum GstMode {
+  PLATFORM_9_5
+  WORKER_REGISTERED
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PAID
+  PAID_OFFLINE
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum RevieweeType {
+  WORKER
+  CUSTOMER
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
+model User {
+  id                 String     @id @default(uuid()) @db.Uuid
+  email              String     @unique
+  phone              String?
+  passwordHash       String     @map("password_hash")
+  name               String
+  globalRole         GlobalRole @map("global_role")
+  status             UserStatus @default(ACTIVE)
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  lastLoginAt        DateTime?  @map("last_login_at")
+  deletedAt          DateTime?  @map("deleted_at")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  refreshTokens    RefreshToken[]
+  ownedProperties  Property[]           @relation("PropertyOwner")
+  tenancies        Tenancy[]
+  invitationsSent  Invitation[]         @relation("Inviter")
+  workerProfile    WorkerProfile?       @relation("WorkerUser")
+  verifiedWorkers  WorkerProfile[]      @relation("WorkerVerifier")
+  orgMemberships   OrganizationMember[]
+  raisedRequests   RepairRequest[]      @relation("RequestRaiser")
+  payingRequests   RepairRequest[]      @relation("RequestPayer")
+  approvedRequests RepairRequest[]      @relation("RequestApprover")
+  uploadedMedia    RequestMedia[]
+  idempotencyKeys  IdempotencyKey[]
+  reviews          Review[]
+  disputesRaised   Dispute[]            @relation("DisputeRaiser")
+  disputesResolved Dispute[]            @relation("DisputeResolver")
+  requestEvents    RequestEvent[]
+  notifications    Notification[]
+
+  @@map("user")
+}
+
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash")
+  familyId     String    @map("family_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([userId])
+  @@map("refresh_token")
+}
+
+model PlatformSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_setting")
+}
+
+model Property {
+  id                   String       @id @default(uuid()) @db.Uuid
+  ownerId              String?      @map("owner_id") @db.Uuid
+  label                String
+  type                 PropertyType
+  addressLine1         String       @map("address_line1")
+  addressLine2         String?      @map("address_line2")
+  city                 String
+  state                String
+  pincode              String
+  lat                  Float
+  lng                  Float
+  isOwnerOccupied      Boolean      @default(false) @map("is_owner_occupied")
+  autoApproveEmergency Boolean      @default(false) @map("auto_approve_emergency")
+  deletedAt            DateTime?    @map("deleted_at")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+
+  owner       User?           @relation("PropertyOwner", fields: [ownerId], references: [id])
+  tenancies   Tenancy[]
+  invitations Invitation[]
+  requests    RepairRequest[]
+
+  @@index([ownerId])
+  @@index([lat, lng])
+  @@map("property")
+}
+
+model Tenancy {
+  id         String        @id @default(uuid()) @db.Uuid
+  propertyId String        @map("property_id") @db.Uuid
+  tenantId   String        @map("tenant_id") @db.Uuid
+  status     TenancyStatus
+  startDate  DateTime      @map("start_date")
+  endDate    DateTime?     @map("end_date")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  property Property @relation(fields: [propertyId], references: [id])
+  tenant   User     @relation(fields: [tenantId], references: [id])
+
+  @@index([propertyId, status])
+  @@index([tenantId, status])
+  @@map("tenancy")
+}
+
+model Invitation {
+  id         String         @id @default(uuid()) @db.Uuid
+  type       InvitationType
+  propertyId String         @map("property_id") @db.Uuid
+  inviterId  String         @map("inviter_id") @db.Uuid
+  email      String
+  phone      String?
+  tokenHash  String         @unique @map("token_hash")
+  expiresAt  DateTime       @map("expires_at")
+  acceptedAt DateTime?      @map("accepted_at")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  property Property @relation(fields: [propertyId], references: [id])
+  inviter  User     @relation("Inviter", fields: [inviterId], references: [id])
+
+  @@index([propertyId])
+  @@map("invitation")
+}
+
+model ServiceCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  icon      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  workers  WorkerCategory[]
+  requests RepairRequest[]
+  stats    WorkerStats[]
+
+  @@map("service_category")
+}
+
+model WorkerProfile {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @unique @map("user_id") @db.Uuid
+  organizationId     String?            @map("organization_id") @db.Uuid
+  bio                String             @default("")
+  baseLat            Float              @map("base_lat")
+  baseLng            Float              @map("base_lng")
+  serviceRadiusKm    Int                @default(20) @map("service_radius_km")
+  isAvailable        Boolean            @default(true) @map("is_available")
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  idDocumentPath     String?            @map("id_document_path")
+  gstin              String?
+  state              String
+  verifiedAt         DateTime?          @map("verified_at")
+  verifiedById       String?            @map("verified_by_id") @db.Uuid
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  user         User             @relation("WorkerUser", fields: [userId], references: [id])
+  verifiedBy   User?            @relation("WorkerVerifier", fields: [verifiedById], references: [id])
+  organization Organization?    @relation(fields: [organizationId], references: [id])
+  categories   WorkerCategory[]
+  matches      RequestMatch[]
+  quotes       Quote[]
+  jobs         Job[]
+  stats        WorkerStats[]
+
+  @@index([verificationStatus, isAvailable])
+  @@index([baseLat, baseLng])
+  @@map("worker_profile")
+}
+
+model WorkerCategory {
+  workerProfileId String @map("worker_profile_id") @db.Uuid
+  categoryId      String @map("category_id") @db.Uuid
+  yearsExperience Int    @default(0) @map("years_experience")
+
+  workerProfile WorkerProfile   @relation(fields: [workerProfileId], references: [id], onDelete: Cascade)
+  category      ServiceCategory @relation(fields: [categoryId], references: [id])
+
+  @@id([workerProfileId, categoryId])
+  @@index([categoryId])
+  @@map("worker_category")
+}
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  gstin     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members OrganizationMember[]
+  workers WorkerProfile[]
+
+  @@map("organization")
+}
+
+model OrganizationMember {
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  role           OrgRole  @default(MEMBER)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@id([organizationId, userId])
+  @@map("organization_member")
+}
+
+model RepairRequest {
+  id             String        @id @default(uuid()) @db.Uuid
+  propertyId     String        @map("property_id") @db.Uuid
+  raisedById     String        @map("raised_by_id") @db.Uuid
+  payerUserId    String        @map("payer_user_id") @db.Uuid
+  categoryId     String        @map("category_id") @db.Uuid
+  title          String
+  description    String
+  priority       Priority
+  status         RequestStatus
+  approvedById   String?       @map("approved_by_id") @db.Uuid
+  approvedAt     DateTime?     @map("approved_at")
+  quoteDeadline  DateTime?     @map("quote_deadline")
+  preferredSlots Json          @default("[]") @map("preferred_slots")
+  searchRadiusKm Int           @default(20) @map("search_radius_km")
+  reopenedCount  Int           @default(0) @map("reopened_count")
+  cancelReason   String?       @map("cancel_reason")
+  reminderSentAt DateTime?     @map("reminder_sent_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  property   Property        @relation(fields: [propertyId], references: [id])
+  raisedBy   User            @relation("RequestRaiser", fields: [raisedById], references: [id])
+  payer      User            @relation("RequestPayer", fields: [payerUserId], references: [id])
+  approvedBy User?           @relation("RequestApprover", fields: [approvedById], references: [id])
+  category   ServiceCategory @relation(fields: [categoryId], references: [id])
+  media      RequestMedia[]
+  matches    RequestMatch[]
+  quotes     Quote[]
+  job        Job?
+  events     RequestEvent[]
+
+  @@index([status, priority, createdAt])
+  @@index([propertyId])
+  @@index([raisedById])
+  @@index([payerUserId])
+  @@map("repair_request")
+}
+
+model RequestMedia {
+  id           String    @id @default(uuid()) @db.Uuid
+  requestId    String    @map("request_id") @db.Uuid
+  jobId        String?   @map("job_id") @db.Uuid
+  path         String
+  kind         MediaKind
+  mimeType     String    @map("mime_type")
+  sizeBytes    Int       @map("size_bytes")
+  uploadedById String    @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  request    RepairRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  job        Job?          @relation(fields: [jobId], references: [id])
+  uploadedBy User          @relation(fields: [uploadedById], references: [id])
+
+  @@index([requestId])
+  @@map("request_media")
+}
+
+model RequestMatch {
+  requestId       String    @map("request_id") @db.Uuid
+  workerProfileId String    @map("worker_profile_id") @db.Uuid
+  distanceKm      Float     @map("distance_km")
+  rankScore       Float     @map("rank_score")
+  notifiedAt      DateTime  @default(now()) @map("notified_at")
+  viewedAt        DateTime? @map("viewed_at")
+
+  request       RepairRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  workerProfile WorkerProfile @relation(fields: [workerProfileId], references: [id])
+
+  @@id([requestId, workerProfileId])
+  @@index([workerProfileId, notifiedAt])
+  @@map("request_match")
+}
+
+model Quote {
+  id              String      @id @default(uuid()) @db.Uuid
+  requestId       String      @map("request_id") @db.Uuid
+  workerProfileId String      @map("worker_profile_id") @db.Uuid
+  labourPaise     Int         @map("labour_paise")
+  materialsPaise  Int         @map("materials_paise")
+  notes           String?
+  etaHours        Int         @map("eta_hours")
+  proposedSlot    DateTime?   @map("proposed_slot")
+  validUntil      DateTime    @map("valid_until")
+  status          QuoteStatus @default(SUBMITTED)
+  version         Int         @default(1)
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  request       RepairRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  workerProfile WorkerProfile @relation(fields: [workerProfileId], references: [id])
+  job           Job?
+
+  // Partial unique (request_id, worker_profile_id) WHERE status IN (SUBMITTED, ACCEPTED) lives in raw SQL.
+  @@index([requestId, status])
+  @@index([workerProfileId])
+  @@map("quote")
+}
+
+model IdempotencyKey {
+  id             String   @id @default(uuid()) @db.Uuid
+  key            String   @unique
+  userId         String   @map("user_id") @db.Uuid
+  route          String
+  responseStatus Int      @map("response_status")
+  responseBody   Json     @map("response_body")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("idempotency_key")
+}
+
+model Job {
+  id               String       @id @default(uuid()) @db.Uuid
+  requestId        String       @unique @map("request_id") @db.Uuid
+  quoteId          String       @unique @map("quote_id") @db.Uuid
+  workerProfileId  String       @map("worker_profile_id") @db.Uuid
+  subStatus        JobSubStatus @default(CONFIRMED) @map("sub_status")
+  scheduledStart   DateTime?    @map("scheduled_start")
+  scheduledEnd     DateTime?    @map("scheduled_end")
+  startedAt        DateTime?    @map("started_at")
+  completedAt      DateTime?    @map("completed_at")
+  confirmedAt      DateTime?    @map("confirmed_at")
+  finalAmountPaise Int?         @map("final_amount_paise")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  request       RepairRequest  @relation(fields: [requestId], references: [id])
+  quote         Quote          @relation(fields: [quoteId], references: [id])
+  workerProfile WorkerProfile  @relation(fields: [workerProfileId], references: [id])
+  media         RequestMedia[]
+  invoice       Invoice?
+  reviews       Review[]
+  dispute       Dispute?
+
+  @@index([workerProfileId])
+  @@map("job")
+}
+
+model InvoiceCounter {
+  fy      String @id
+  lastSeq Int    @default(0) @map("last_seq")
+
+  @@map("invoice_counter")
+}
+
+model Invoice {
+  id                 String        @id @default(uuid()) @db.Uuid
+  jobId              String        @unique @map("job_id") @db.Uuid
+  number             String        @unique
+  servicePaise       Int           @map("service_paise")
+  cgstPaise          Int           @map("cgst_paise")
+  sgstPaise          Int           @map("sgst_paise")
+  igstPaise          Int           @map("igst_paise")
+  totalPaise         Int           @map("total_paise")
+  commissionPaise    Int           @map("commission_paise")
+  commissionGstPaise Int           @map("commission_gst_paise")
+  tcsPaise           Int           @map("tcs_paise")
+  workerPayoutPaise  Int           @map("worker_payout_paise")
+  gstMode            GstMode       @map("gst_mode")
+  ratesSnapshot      Json          @map("rates_snapshot")
+  status             InvoiceStatus @default(ISSUED)
+  offlineMarkedAt    DateTime?     @map("offline_marked_at")
+  issuedAt           DateTime      @default(now()) @map("issued_at")
+  paidAt             DateTime?     @map("paid_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  job      Job       @relation(fields: [jobId], references: [id])
+  payments Payment[]
+
+  @@map("invoice")
+}
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  invoiceId         String        @map("invoice_id") @db.Uuid
+  provider          String
+  providerOrderId   String        @unique @map("provider_order_id")
+  providerPaymentId String?       @map("provider_payment_id")
+  amountPaise       Int           @map("amount_paise")
+  status            PaymentStatus @default(CREATED)
+  method            String?
+  failureReason     String?       @map("failure_reason")
+  refundedPaise     Int           @default(0) @map("refunded_paise")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId, status])
+  @@map("payment")
+}
+
+model PaymentEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  provider    String
+  eventId     String   @map("event_id")
+  type        String
+  payload     Json
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@unique([provider, eventId])
+  @@map("payment_event")
+}
+
+model Review {
+  id                    String       @id @default(uuid()) @db.Uuid
+  jobId                 String       @map("job_id") @db.Uuid
+  reviewerId            String       @map("reviewer_id") @db.Uuid
+  revieweeType          RevieweeType @map("reviewee_type")
+  quality               Int?
+  punctuality           Int?
+  behaviour             Int?
+  value                 Int?
+  overall               Int
+  wouldRehire           Boolean?     @map("would_rehire")
+  finalCostMatchedQuote Boolean?     @map("final_cost_matched_quote")
+  comment               String?
+  editedAt              DateTime?    @map("edited_at")
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @updatedAt @map("updated_at")
+
+  job      Job  @relation(fields: [jobId], references: [id])
+  reviewer User @relation(fields: [reviewerId], references: [id])
+
+  @@unique([jobId, reviewerId])
+  @@map("review")
+}
+
+model WorkerStats {
+  workerProfileId    String   @map("worker_profile_id") @db.Uuid
+  categoryId         String   @map("category_id") @db.Uuid
+  ratingCount        Int      @default(0) @map("rating_count")
+  sumOverall         Int      @default(0) @map("sum_overall")
+  sumQuality         Int      @default(0) @map("sum_quality")
+  sumPunctuality     Int      @default(0) @map("sum_punctuality")
+  sumBehaviour       Int      @default(0) @map("sum_behaviour")
+  sumValue           Int      @default(0) @map("sum_value")
+  countQuality       Int      @default(0) @map("count_quality")
+  countPunctuality   Int      @default(0) @map("count_punctuality")
+  countBehaviour     Int      @default(0) @map("count_behaviour")
+  countValue         Int      @default(0) @map("count_value")
+  jobsCompleted      Int      @default(0) @map("jobs_completed")
+  cancellations      Int      @default(0)
+  avgResponseMinutes Float?   @map("avg_response_minutes")
+  bayesianScore      Float    @default(0) @map("bayesian_score")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  workerProfile WorkerProfile   @relation(fields: [workerProfileId], references: [id], onDelete: Cascade)
+  category      ServiceCategory @relation(fields: [categoryId], references: [id])
+
+  @@id([workerProfileId, categoryId])
+  @@map("worker_stats")
+}
+
+model Dispute {
+  id           String        @id @default(uuid()) @db.Uuid
+  jobId        String        @unique @map("job_id") @db.Uuid
+  raisedById   String        @map("raised_by_id") @db.Uuid
+  reason       String
+  status       DisputeStatus @default(OPEN)
+  resolution   String?
+  resolvedById String?       @map("resolved_by_id") @db.Uuid
+  resolvedAt   DateTime?     @map("resolved_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  job        Job   @relation(fields: [jobId], references: [id])
+  raisedBy   User  @relation("DisputeRaiser", fields: [raisedById], references: [id])
+  resolvedBy User? @relation("DisputeResolver", fields: [resolvedById], references: [id])
+
+  @@index([status])
+  @@map("dispute")
+}
+
+model RequestEvent {
+  id         String         @id @default(uuid()) @db.Uuid
+  requestId  String         @map("request_id") @db.Uuid
+  actorId    String?        @map("actor_id") @db.Uuid
+  action     String
+  fromStatus RequestStatus? @map("from_status")
+  toStatus   RequestStatus  @map("to_status")
+  payload    Json           @default("{}")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  request RepairRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actor   User?         @relation(fields: [actorId], references: [id])
+
+  @@index([requestId, createdAt])
+  @@map("request_event")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notification")
 }

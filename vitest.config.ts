@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    env: { NODE_ENV: "test" },
+    env: { NODE_ENV: "test", SEED_SUPERADMIN_PASSWORD: "Rubi@123" },
     projects: [
       {
         test: {
@@ -16,6 +16,7 @@ export default defineConfig({
           name: "integration",
           include: ["tests/integration/**/*.test.ts"],
           environment: "node",
+          globalSetup: ["tests/helpers/globalSetup.ts"],
           // One DB: run files sequentially so truncation can't race.
           fileParallelism: false,
           testTimeout: 15_000,

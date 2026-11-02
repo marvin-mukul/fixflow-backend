@@ -5,12 +5,12 @@ Follow these rules for every change. Product spec: `../requirements.md`; build o
 ## Stack
 
 - Node 26 (`.nvmrc`; run `nvm use` first), TypeScript `~6.0.x` strict, **ESM** (`"type": "module"`, NodeNext, `.js` suffix on every relative import).
-- Express 5, zod v4 (+ `@asteasolutions/zod-to-openapi`), Prisma **7** with `@prisma/adapter-pg`, PostgreSQL 16 + PostGIS, pino, Vitest + Supertest.
-- Prisma 7 only: URL lives in `prisma.config.ts`, never `url = env()` in the schema. Client is generated to `src/generated/prisma` (gitignored) and imported from `../generated/prisma/client.js`. PostGIS columns are `Unsupported("geography(Point,4326)")` and use `$queryRaw`/`$executeRaw` tagged templates.
+- Express 5, zod v4 (+ `@asteasolutions/zod-to-openapi`), Prisma **7** with `@prisma/adapter-pg`, PostgreSQL 17 (no PostGIS — ADR 002), pino, Vitest + Supertest.
+- Prisma 7 only: URL lives in `prisma.config.ts`, never `url = env()` in the schema. Client is generated to `src/generated/prisma` (gitignored) and imported from `../generated/prisma/client.js`. Geo is lat/lng floats + SQL haversine in `matching.repository` (ADR 002); raw SQL only via `$queryRaw`/`$executeRaw` tagged templates. After any schema change run `npm run db:generate` (Prisma 7 migrate does not regenerate).
 
 ## Commands
 
-- No Docker. Local PostgreSQL 17 + PostGIS on **localhost:5432** (dbs `fixflow`, `fixflow_test`; one-time setup in `../requirements.md §13`). Emails are logged to the console unless `SMTP_HOST` is set.
+- No Docker. Local PostgreSQL 17 on **localhost:5432** (dbs `fixflow`, `fixflow_test`; one-time setup in `../requirements.md §13`). Emails are logged to the console unless `SMTP_HOST` is set.
 - `npm run dev` – API on :4000, Swagger at `/api/docs`, spec at `/api/docs.json`
 - `npm run typecheck && npm run lint && npm test` – must be green before every commit
 - `npm run db:migrate` / `db:reset` / `db:seed` / `db:generate` / `db:studio`
