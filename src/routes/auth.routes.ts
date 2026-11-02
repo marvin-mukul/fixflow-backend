@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { z } from "zod";
 import { authController } from "../controllers/auth.controller.js";
-import { errorResponses, registry } from "../lib/openapi.js";
+import { errorResponses, json, registry } from "../lib/openapi.js";
 import { authenticateLocal, requireAuth } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
@@ -37,9 +36,6 @@ authRouter.post(
   authController.changePassword,
 );
 
-const json = <T extends z.ZodType>(schema: T) => ({
-  "application/json": { schema },
-});
 const session = {
   description:
     "Access token in body; rotating refresh token set as httpOnly cookie `ff_refresh` (path /api/v1/auth)",

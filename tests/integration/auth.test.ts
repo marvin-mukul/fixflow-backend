@@ -45,24 +45,20 @@ describe("auth", () => {
 
   it("rejects duplicate email (409) and weak passwords (422)", async () => {
     await createUser({ email: "dup@test.fixflow" });
-    const dup = await api()
-      .post("/api/v1/auth/register")
-      .send({
-        name: "Dup",
-        email: "dup@test.fixflow",
-        password: "Secret@123",
-        role: "WORKER",
-      });
+    const dup = await api().post("/api/v1/auth/register").send({
+      name: "Dup",
+      email: "dup@test.fixflow",
+      password: "Secret@123",
+      role: "WORKER",
+    });
     expect(dup.status).toBe(409);
     expect(dup.body.error.code).toBe("EMAIL_TAKEN");
-    const weak = await api()
-      .post("/api/v1/auth/register")
-      .send({
-        name: "W",
-        email: "w@test.fixflow",
-        password: "short",
-        role: "ADMIN",
-      });
+    const weak = await api().post("/api/v1/auth/register").send({
+      name: "W",
+      email: "w@test.fixflow",
+      password: "short",
+      role: "ADMIN",
+    });
     expect(weak.status).toBe(422);
     const paths = weak.body.error.details.map((d: { path: string }) => d.path);
     expect(paths).toEqual(

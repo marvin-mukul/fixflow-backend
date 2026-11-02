@@ -74,3 +74,13 @@ export function buildOpenApiDocument() {
     servers: [{ url: "/" }],
   });
 }
+
+/** `content` helper for request/response bodies. */
+export const json = <T extends z.ZodType>(schema: T) => ({
+  "application/json": { schema },
+});
+
+export const ok = <T extends z.ZodType>(description: string, schema: T) => ({
+  description,
+  content: json(schema),
+});
