@@ -11,6 +11,7 @@ import { errorHandler } from "./middlewares/errorHandler.js";
 import { notFound } from "./middlewares/notFound.js";
 import {
   createAuthLimiter,
+  createRefreshLimiter,
   createRequestCreateLimiter,
 } from "./middlewares/rateLimit.js";
 import { requestId } from "./middlewares/requestId.js";
@@ -52,7 +53,10 @@ export function createApp(): Express {
   app.use(passportInitialize);
 
   app.use(opsRouter);
-  app.use("/api/v1/auth", createAuthLimiter());
+  const authLimiter = createAuthLimiter();
+  for (const p of ["login", "register", "change-password"])
+    app.post(`/api/v1/auth/${p}`, authLimiter);
+  app.post("/api/v1/auth/refresh", createRefreshLimiter());
   const requestCreateLimiter = createRequestCreateLimiter();
   app.post("/api/v1/requests", requestCreateLimiter);
   app.use("/api/v1", apiRouter);

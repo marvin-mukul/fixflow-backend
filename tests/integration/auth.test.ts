@@ -204,3 +204,12 @@ describe("auth", () => {
     expect(last).toBe(429);
   });
 });
+
+describe("rate limit scope", () => {
+  it("refresh is not throttled by the login limiter", async () => {
+    const agent = supertest(createApp());
+    for (let i = 0; i < 25; i++) await agent.post("/api/v1/auth/refresh");
+    const res = await agent.post("/api/v1/auth/refresh");
+    expect(res.status).toBe(401);
+  });
+});

@@ -11,6 +11,8 @@ function limiter(limit: number, windowMs: number) {
   });
 }
 
-/** Created per app instance so tests get isolated counters. */
+/** Created per app instance so tests get isolated counters. Credential endpoints only. */
 export const createAuthLimiter = () => limiter(20, 60_000);
+/** Refresh runs on every page load: generous, but still bounded. */
+export const createRefreshLimiter = () => limiter(120, 60_000);
 export const createRequestCreateLimiter = () => limiter(30, 60 * 60_000);
