@@ -8,3 +8,4 @@ uploads
 src/generated
 *.log
 .idea
+.test-uploads

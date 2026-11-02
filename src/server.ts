@@ -2,8 +2,11 @@ import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { prisma } from "./lib/prisma.js";
+import { startScheduler } from "./jobs/scheduler.js";
+import "./jobs/tasks.js";
 
 const app = createApp();
+const scheduler = startScheduler();
 
 const server = app.listen(env.PORT, () => {
   logger.info(
@@ -18,6 +21,7 @@ async function shutdown(signal: string) {
   logger.info(`${signal} received, shutting down`);
   const force = setTimeout(() => process.exit(1), 10_000);
   force.unref();
+  void scheduler.stop();
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);

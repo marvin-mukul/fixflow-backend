@@ -8,7 +8,10 @@ import { logger } from "./lib/logger.js";
 import { passportInitialize } from "./middlewares/auth.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { notFound } from "./middlewares/notFound.js";
-import { createAuthLimiter } from "./middlewares/rateLimit.js";
+import {
+  createAuthLimiter,
+  createRequestCreateLimiter,
+} from "./middlewares/rateLimit.js";
 import { requestId } from "./middlewares/requestId.js";
 import { createDocsRouter } from "./routes/docs.routes.js";
 import { apiRouter, opsRouter } from "./routes/index.js";
@@ -47,6 +50,8 @@ export function createApp(): Express {
 
   app.use(opsRouter);
   app.use("/api/v1/auth", createAuthLimiter());
+  const requestCreateLimiter = createRequestCreateLimiter();
+  app.post("/api/v1/requests", requestCreateLimiter);
   app.use("/api/v1", apiRouter);
   if (!isProd || env.SWAGGER_PUBLIC) app.use(createDocsRouter());
 

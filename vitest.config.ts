@@ -2,7 +2,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    env: { NODE_ENV: "test", SEED_SUPERADMIN_PASSWORD: "Rubi@123" },
+    env: {
+      NODE_ENV: "test",
+      SEED_SUPERADMIN_PASSWORD: "Rubi@123",
+      UPLOAD_DIR: ".test-uploads",
+    },
     projects: [
       {
         test: {

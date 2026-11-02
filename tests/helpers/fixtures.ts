@@ -29,3 +29,32 @@ export async function addTenant(propertyId: string, tenantId: string) {
     data: { propertyId, tenantId, status: "ACTIVE", startDate: new Date() },
   });
 }
+
+export const PNG_1PX = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+let catN = 0;
+export async function createCategory(slug?: string) {
+  catN += 1;
+  const s = slug ?? `cat-${catN}-${Date.now()}`;
+  return prisma.serviceCategory.upsert({
+    where: { slug: s },
+    update: {},
+    create: { slug: s, name: s, icon: "wrench" },
+  });
+}
+
+export const requestInput = (
+  propertyId: string,
+  categoryId: string,
+  over: Record<string, unknown> = {},
+) => ({
+  propertyId,
+  categoryId,
+  title: "Kitchen sink leaking",
+  description: "Water drips from the pipe under the kitchen sink.",
+  priority: "MEDIUM",
+  ...over,
+});
