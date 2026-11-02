@@ -414,3 +414,26 @@ describe("reviews", () => {
     expect(s.bayesianScore).toBeCloseTo((40 + 6) / 12, 6);
   });
 });
+
+describe("job myReview", () => {
+  beforeEach(resetDb);
+  it("exposes edit state", async () => {
+    const ctx = await completedJob();
+    const r = await api()
+      .post(`/api/v1/jobs/${ctx.jobId}/reviews`)
+      .set(ctx.tenant.auth)
+      .send({ overall: 4 });
+    expect(
+      (await api().get(`/api/v1/jobs/${ctx.jobId}`).set(ctx.tenant.auth)).body
+        .myReview,
+    ).toMatchObject({ id: r.body.id, editable: true, editedAt: null });
+    await api()
+      .patch(`/api/v1/reviews/${r.body.id}`)
+      .set(ctx.tenant.auth)
+      .send({ overall: 5 });
+    expect(
+      (await api().get(`/api/v1/jobs/${ctx.jobId}`).set(ctx.tenant.auth)).body
+        .myReview,
+    ).toMatchObject({ overall: 5, editable: false });
+  });
+});
