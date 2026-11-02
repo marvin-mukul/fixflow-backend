@@ -28,12 +28,9 @@ const schema = z.object({
     .email()
     .default("marvin.mukul@rubicotech.in"),
   SEED_SUPERADMIN_PASSWORD: z.string().min(6).optional(),
-  // Empty SMTP_HOST → emails are logged to the console (dev/test, no mail server needed).
-  SMTP_HOST: z.string().default(""),
-  SMTP_PORT: z.coerce.number().int().positive().default(587),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().default("FixFlow <no-reply@fixflow.local>"),
+  // Brevo transactional API key (xkeysib-...). Empty → emails are logged to the console (dev/test).
+  BREVO_API_KEY: z.string().default(""),
   UPLOAD_DIR: z.string().default("./uploads"),
   // "s3" stores uploads in an S3-compatible bucket (Neon, R2, AWS); "local" uses UPLOAD_DIR.
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
