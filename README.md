@@ -86,6 +86,13 @@ Order amounts are sent in rupees (`paise / 100`, two decimals); the webhook sign
 | `test:int`, `test:cov`, `openapi:check`                                      | subsets                                        |
 | `db:migrate`, `db:deploy`, `db:seed`, `db:reset`, `db:generate`, `db:studio` | Prisma                                         |
 
+## Security notes
+
+- helmet, CORS allow-list (`CORS_ORIGIN`, comma-separated), rate limits on `/api/v1/auth/*` (20/min/IP) and request creation (30/h/IP), bcrypt cost 12, zod on every input, pino log redaction (tokens, cookies, passwords, payment secrets).
+- Swagger is public in dev; in production it requires an admin bearer token unless `SWAGGER_PUBLIC=true`.
+- `DELETE /api/v1/auth/me` soft-deletes and anonymises an account (blocked while requests, jobs or unpaid invoices are open).
+- Decisions: `docs/adr/` (ESM, geo without PostGIS, contextual roles, explicit transitions, commission from payout, Bayesian ranking, mock-first payments, JWT + refresh cookie). AI usage: `docs/AI_USAGE.md`.
+
 ## Architecture
 
 `routes → controllers → services → repositories → prisma`; pure business rules in `src/domain` (state machine, pricing, ranking, geo, money). See `AGENTS.md` and `../system-design.md`.
