@@ -27,8 +27,8 @@ export const requestInclude = {
     },
   },
   category: { select: { id: true, slug: true, name: true, icon: true } },
-  raisedBy: { select: { id: true, name: true } },
-  payer: { select: { id: true, name: true } },
+  raisedBy: { select: { id: true, name: true, phone: true } },
+  payer: { select: { id: true, name: true, phone: true } },
   media: { orderBy: { createdAt: "asc" } },
   job: {
     include: {
@@ -179,6 +179,50 @@ export const requestRepository = {
       data: { reminderSentAt: at },
     });
     return r.count === 1;
+  },
+
+  /** Leads = requests this worker was matched to (scoped in SQL). */
+  async listLeads(
+    workerProfileId: string,
+    f: { open?: boolean; cursor?: string; limit: number },
+    tx: TxClient = prisma,
+  ) {
+    const rows = await tx.repairRequest.findMany({
+      where: {
+        matches: { some: { workerProfileId } },
+        ...(f.open ? { status: "OPEN_FOR_QUOTES" } : {}),
+      },
+      include: {
+        ...requestInclude,
+        matches: { where: { workerProfileId } },
+        quotes: { where: { workerProfileId }, orderBy: { createdAt: "desc" } },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: f.limit + 1,
+      ...(f.cursor ? { cursor: { id: f.cursor }, skip: 1 } : {}),
+    });
+    const hasMore = rows.length > f.limit;
+    const items = hasMore ? rows.slice(0, f.limit) : rows;
+    return { items, nextCursor: hasMore ? items.at(-1)!.id : null };
+  },
+
+  findLead(requestId: string, workerProfileId: string, tx: TxClient = prisma) {
+    return tx.repairRequest.findFirst({
+      where: { id: requestId, matches: { some: { workerProfileId } } },
+      include: {
+        ...requestInclude,
+        matches: { where: { workerProfileId } },
+        quotes: { where: { workerProfileId }, orderBy: { createdAt: "desc" } },
+      },
+    });
+  },
+
+  findOpenPastDeadline(now: Date, tx: TxClient = prisma) {
+    return tx.repairRequest.findMany({
+      where: { status: "OPEN_FOR_QUOTES", quoteDeadline: { lt: now } },
+      select: { id: true },
+      take: 100,
+    });
   },
 
   findPendingApprovalBefore(cutoff: Date, tx: TxClient = prisma) {

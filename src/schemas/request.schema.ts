@@ -28,14 +28,9 @@ export const CreateRequestBody = z
       .min(5)
       .max(120)
       .openapi({ example: "Kitchen sink leaking" }),
-    description: z
-      .string()
-      .trim()
-      .min(10)
-      .max(2000)
-      .openapi({
-        example: "Water drips from the pipe under the kitchen sink.",
-      }),
+    description: z.string().trim().min(10).max(2000).openapi({
+      example: "Water drips from the pipe under the kitchen sink.",
+    }),
     priority: PriorityEnum.openapi({ example: "HIGH" }),
     preferredSlots: z.array(Slot).max(3).default([]),
     payerUserId: z

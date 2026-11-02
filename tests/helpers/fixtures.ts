@@ -58,3 +58,57 @@ export const requestInput = (
   priority: "MEDIUM",
   ...over,
 });
+
+import { offsetKm } from "../../src/domain/geo.js";
+import { DEHRADUN as CENTER } from "../../prisma/seed.js";
+import { createUser, login } from "./auth.js";
+
+export async function createWorker(
+  categoryId: string,
+  opts: {
+    northKm?: number;
+    radiusKm?: number;
+    status?: "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED";
+    isAvailable?: boolean;
+    jobsCompleted?: number;
+    bayesian?: number;
+    state?: string;
+    gstin?: string | null;
+  } = {},
+) {
+  const user = await createUser({ role: "WORKER" });
+  const pos = offsetKm(CENTER, opts.northKm ?? 2);
+  const profile = await prisma.workerProfile.create({
+    data: {
+      userId: user.id,
+      baseLat: pos.lat,
+      baseLng: pos.lng,
+      serviceRadiusKm: opts.radiusKm ?? 20,
+      verificationStatus: opts.status ?? "VERIFIED",
+      isAvailable: opts.isAvailable ?? true,
+      state: opts.state ?? "Uttarakhand",
+      gstin: opts.gstin ?? null,
+      categories: { create: { categoryId, yearsExperience: 3 } },
+    },
+  });
+  if (opts.jobsCompleted !== undefined || opts.bayesian !== undefined) {
+    await prisma.workerStats.create({
+      data: {
+        workerProfileId: profile.id,
+        categoryId,
+        jobsCompleted: opts.jobsCompleted ?? 0,
+        bayesianScore: opts.bayesian ?? 4,
+      },
+    });
+  }
+  const { token } = await login(user.email);
+  return { user, profile, token, auth: { Authorization: `Bearer ${token}` } };
+}
+
+export const quoteInput = (over: Record<string, unknown> = {}) => ({
+  labourPaise: 40000,
+  materialsPaise: 10000,
+  etaHours: 4,
+  notes: "Will replace the trap",
+  ...over,
+});

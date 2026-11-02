@@ -14,6 +14,7 @@ import {
   type RequestWithContext,
 } from "../repositories/request.repository.js";
 import { quoteRepository } from "../repositories/quote.repository.js";
+import { matchRepository } from "../repositories/worker.repository.js";
 import { propertyRepository } from "../repositories/property.repository.js";
 import { tenancyRepository } from "../repositories/tenancy.repository.js";
 import type {
@@ -437,17 +438,13 @@ export const requestService = {
   },
 
   /** Media is served only to users who can see the request (or matched leads, Step 6). */
-  async openMedia(
-    id: string,
-    mediaId: string,
-    user: Viewer,
-    extraAccess?: (req: RequestWithContext) => Promise<boolean>,
-  ) {
+  async openMedia(id: string, mediaId: string, user: Viewer) {
     const req = await requestRepository.findWithContext(id);
     if (!req) throw AppError.notFound();
     const visible =
       relationsFor(req, user).length > 0 ||
-      (extraAccess ? await extraAccess(req) : false);
+      (user.globalRole === "WORKER" &&
+        (await matchRepository.existsForUser(id, user.id)));
     if (!visible) throw AppError.notFound();
     const media = await requestRepository.findMedia(id, mediaId);
     if (!media) throw AppError.notFound();
