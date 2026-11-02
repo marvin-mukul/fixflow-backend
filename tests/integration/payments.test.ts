@@ -125,7 +125,10 @@ describe("payments (mock provider)", () => {
       59000,
     );
     const send = () =>
-      api().post("/api/v1/webhooks/payments/mock").set(headers).send(rawBody.toString("utf8"));
+      api()
+        .post("/api/v1/webhooks/payments/mock")
+        .set(headers)
+        .send(rawBody.toString("utf8"));
     expect((await send()).body).toEqual({ received: true });
     expect((await send()).body).toEqual({ received: true, duplicate: true });
     expect(await prisma.paymentEvent.count()).toBe(1);

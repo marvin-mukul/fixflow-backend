@@ -33,9 +33,7 @@ export interface PaymentProvider {
   createCheckout(
     input: CreateCheckoutInput,
   ): Promise<{ providerOrderId: string; checkout: Checkout }>;
-  verifyReturn(
-    params: Record<string, string>,
-  ): Promise<{
+  verifyReturn(params: Record<string, string>): Promise<{
     providerOrderId: string;
     status: ProviderStatus;
     providerPaymentId?: string;
